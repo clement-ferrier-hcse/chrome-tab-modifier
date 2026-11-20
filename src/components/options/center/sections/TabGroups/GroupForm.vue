@@ -45,37 +45,33 @@
 					/>
 				</label>
 			</div>
+		</div>
 
-			<div class="form-control mt-4">
-				<label class="label" for="group-max-tabs">
-					<span class="label-text text-sm">Max tabs</span>
-				</label>
-				<div class="flex gap-2">
-					<select
-						id="group-max-tabs"
-						:value="maxTabsChoice"
-						class="select select-xs"
-						@change="onMaxTabsChoice(($event.target as HTMLSelectElement).value)"
-					>
-						<option :value="0">Unlimited</option>
-						<option v-for="n in MAX_TABS_PRESETS" :key="n" :value="n">
-							{{ n === 1 ? '1 (latest only)' : n }}
-						</option>
-						<option value="more">More…</option>
-					</select>
-					<input
-						v-if="maxTabsChoice === 'more'"
-						v-model.number="currentGroup.max_tabs"
-						aria-label="Max tabs"
-						class="input input-xs input-bordered w-20"
-						min="6"
-						type="number"
-					/>
-				</div>
+		<div class="form-control w-full flex-1">
+			<label class="cursor-pointer label">
+				<span class="label-text text-sm">Close extra tabs</span>
+				<input
+					v-model="limitTabs"
+					class="toggle toggle-sm toggle-primary"
+					type="checkbox"
+					@change="onLimitTabsToggle"
+				/>
+			</label>
+			<div v-if="limitTabs" class="flex items-center gap-2">
+				<span class="text-sm opacity-80">Keep at most</span>
+				<input
+					v-model.number="currentGroup.max_tabs"
+					aria-describedby="group-max-tabs-hint"
+					aria-label="Number of tabs to keep"
+					class="input input-xs w-20"
+					min="1"
+					type="number"
+				/>
+				<span class="text-sm opacity-80">tabs</span>
 			</div>
-			<div v-if="showHelp" class="label">
+			<div v-if="limitTabs" id="group-max-tabs-hint" class="label">
 				<span class="text-xs label-text-alt opacity-80"
-					>Least recently used tabs close beyond this number. 0 = unlimited</span
+					>Opening a tab beyond this limit closes the least recently used tabs in this group.</span
 				>
 			</div>
 		</div>
@@ -99,12 +95,7 @@
 import { useRulesStore } from '../../../../../stores/rules.store.ts';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import CustomSelect from '../../../../global/CustomSelect.vue';
-import {
-	_clone,
-	_groupColors,
-	_maxTabsChoice,
-	MAX_TABS_PRESETS,
-} from '../../../../../common/helpers.ts';
+import { _clone, _groupColors } from '../../../../../common/helpers.ts';
 import { GLOBAL_EVENTS, Group } from '../../../../../common/types.ts';
 import HelpSwap from '../../../../global/HelpSwap.vue';
 
@@ -125,29 +116,23 @@ const currentGroup = ref(_clone(rulesStore.currentGroup ?? defaultGroup));
 
 const availableGroupColors = _groupColors();
 
-const maxTabsChoice = ref(_maxTabsChoice(currentGroup.value.max_tabs));
-
-const onMaxTabsChoice = (value: string) => {
-	if (value === 'more') {
-		maxTabsChoice.value = 'more';
-		if ((currentGroup.value.max_tabs ?? 0) <= MAX_TABS_PRESETS.length) {
-			currentGroup.value.max_tabs = MAX_TABS_PRESETS.length + 1;
-		}
-		return;
-	}
-	currentGroup.value.max_tabs = Number(value);
-	maxTabsChoice.value = Number(value);
+// own state, so clearing the number field does not hide it
+const limitTabs = ref((currentGroup.value.max_tabs ?? 0) > 0);
+const onLimitTabsToggle = () => {
+	currentGroup.value.max_tabs = limitTabs.value ? 5 : 0;
 };
 
 watch(
 	() => rulesStore.currentGroup,
 	(newGroup) => {
 		currentGroup.value = newGroup ?? defaultGroup;
-		maxTabsChoice.value = _maxTabsChoice(currentGroup.value.max_tabs);
+		limitTabs.value = (currentGroup.value.max_tabs ?? 0) > 0;
 	}
 );
 
 const save = async () => {
+	// empty or invalid input means no limit
+	currentGroup.value.max_tabs = Math.max(0, Math.floor(Number(currentGroup.value.max_tabs) || 0));
 	if (isEditMode.value) {
 		await rulesStore.updateGroup(currentGroup.value);
 	} else {

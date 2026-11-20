@@ -362,11 +362,3 @@ export function _getUniqueKey(
 
 	return urlFragment;
 }
-
-export const MAX_TABS_PRESETS = [1, 2, 3, 4, 5];
-
-// Select value for a saved max_tabs: 0 (unlimited), a preset, or 'more' for any other number
-export function _maxTabsChoice(maxTabs?: number): number | 'more' {
-	const max = maxTabs ?? 0;
-	return max === 0 || MAX_TABS_PRESETS.includes(max) ? max : 'more';
-}
