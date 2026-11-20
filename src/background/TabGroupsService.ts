@@ -152,6 +152,7 @@ export class TabGroupsService {
 					chrome.tabGroups.query(tabGroupsQueryInfo, (result) => resolve(result ?? []))
 				);
 				await this.handleTabGroups(groups, tab, tmGroup);
+				await this.enforceMaxTabs(tab.id!, tmGroup);
 			});
 		this.groupLocks.set(lockKey, run);
 
@@ -160,6 +161,28 @@ export class TabGroupsService {
 		} finally {
 			if (this.groupLocks.get(lockKey) === run) this.groupLocks.delete(lockKey);
 		}
+	}
+
+	/**
+	 * Close the least recently accessed tabs of the group beyond its max_tabs (0 or missing = unlimited)
+	 */
+	private async enforceMaxTabs(tabId: number, tmGroup: Group): Promise<void> {
+		const max = tmGroup.max_tabs ?? 0;
+		if (max <= 0) return;
+
+		const groupId = (await chrome.tabs.get(tabId).catch(() => undefined))?.groupId;
+		if (groupId === undefined || groupId === -1) return;
+
+		const tabs = await chrome.tabs.query({ groupId });
+		const excess = tabs.length - max;
+		if (excess <= 0) return;
+
+		const closable = tabs
+			.filter((t) => t.id !== undefined && t.id !== tabId && !t.active)
+			.sort((a, b) => (a.lastAccessed ?? 0) - (b.lastAccessed ?? 0))
+			.slice(0, excess)
+			.map((t) => t.id!);
+		if (closable.length > 0) await chrome.tabs.remove(closable);
 	}
 
 	/**

@@ -15,7 +15,15 @@ const later = (fn: () => void) => setTimeout(fn, 0);
 
 const mockChrome = {
 	tabs: {
-		get: vi.fn(async (tabId: number) => ({ id: tabId })),
+		get: vi.fn(async (tabId: number) => ({ id: tabId, groupId: tabGroupOf[tabId] ?? -1 })),
+		// lastAccessed = tab id, so a lower id is an older tab
+		query: vi.fn(async (info: any) =>
+			Object.keys(tabGroupOf)
+				.map(Number)
+				.filter((id) => tabGroupOf[id] === info.groupId)
+				.map((id) => ({ id, active: id === activeTab, lastAccessed: id }))
+		),
+		remove: vi.fn(async (ids: number[]) => ids.forEach((id) => delete tabGroupOf[id])),
 		group: vi.fn((options: any, callback: any) => {
 			later(() => {
 				const tabId = options.tabIds[0];
@@ -60,6 +68,7 @@ vi.mock('../../common/storage', () => ({
 }));
 
 let windowOf: Record<number, number> = {};
+let activeTab = -1;
 
 const tabModifier = {
 	rules: [],
@@ -84,6 +93,7 @@ describe('TabGroupsService - parallel tabs of the same group (#556)', () => {
 		groups = [];
 		tabGroupOf = {};
 		windowOf = {};
+		activeTab = -1;
 		nextGroupId = 100;
 	});
 
@@ -120,5 +130,34 @@ describe('TabGroupsService - parallel tabs of the same group (#556)', () => {
 		]);
 
 		expect(groups.map((g) => g.windowId).sort()).toEqual([1, 2]);
+	});
+
+	it('6th tab in a group of max 5 -> oldest non-active tab closed', async () => {
+		activeTab = 1;
+		const max5 = {
+			...tabModifier,
+			groups: [{ ...tabModifier.groups[0], max_tabs: 5 }],
+		} as TabModifierSettings;
+		for (const id of [1, 2, 3, 4, 5, 6]) {
+			await service.applyGroupRuleToTab(ruleFor('a'), tab(id), max5);
+		}
+
+		expect(mockChrome.tabs.remove).toHaveBeenCalledTimes(1);
+		expect(mockChrome.tabs.remove).toHaveBeenCalledWith([2]);
+	});
+
+	it.each([
+		['max_tabs 0', 0],
+		['max_tabs missing (existing groups)', undefined],
+	])('%s -> unlimited', async (_label, max_tabs) => {
+		const unlimited = {
+			...tabModifier,
+			groups: [{ ...tabModifier.groups[0], max_tabs }],
+		} as TabModifierSettings;
+		for (const id of [1, 2, 3, 4, 5, 6]) {
+			await service.applyGroupRuleToTab(ruleFor('a'), tab(id), unlimited);
+		}
+
+		expect(mockChrome.tabs.remove).not.toHaveBeenCalled();
 	});
 });

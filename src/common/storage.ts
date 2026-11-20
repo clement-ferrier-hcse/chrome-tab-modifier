@@ -57,6 +57,7 @@ export function _getDefaultGroup(title?: string): Group {
 		title: title ?? '',
 		color: 'grey',
 		collapsed: false,
+		max_tabs: 0,
 		id: _generateRandomId(),
 	};
 }

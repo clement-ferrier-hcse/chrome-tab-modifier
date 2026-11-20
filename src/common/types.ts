@@ -41,6 +41,8 @@ export type Group = {
 	title: string;
 	color: string;
 	collapsed: boolean;
+	// Max tabs kept in the group, least recently accessed closed first; 0 or missing = unlimited
+	max_tabs?: number;
 };
 
 export type LightweightModePattern = {

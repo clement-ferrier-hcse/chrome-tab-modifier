@@ -34,7 +34,7 @@ Tabee works alongside a session manager: it acts on each tab when it loads, so r
 * Rename tab (with `{title}`, CSS selectors, URL and title capture groups)
 * Change tab icon (bullets, Chrome icons, emoji, URL, pasted image)
 * Pin tab
-* Group tabs
+* Group tabs (optional max tabs per group, least recently used closed first)
 * Prevent tab closing
 * Unique tab (close duplicates)
 * Mute tab

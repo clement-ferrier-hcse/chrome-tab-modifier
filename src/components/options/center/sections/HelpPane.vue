@@ -216,6 +216,10 @@
 
 				<h3 class="font-bold">Group</h3>
 				<p>This action will move your tab to a group.</p>
+				<p>
+					Set <em>Max tabs</em> on a group to cap its size: beyond it, the least recently used tabs
+					of the group close (never the active tab). 0 = unlimited.
+				</p>
 
 				<h3 class="font-bold">Pinned</h3>
 				<p>This action will pin the tab.</p>
