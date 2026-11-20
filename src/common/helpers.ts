@@ -362,3 +362,14 @@ export function _getUniqueKey(
 
 	return urlFragment;
 }
+
+// Ids of the least recently accessed tabs beyond max, never the active tab or keepTabId
+export function _tabsBeyondMax(tabs: chrome.tabs.Tab[], max: number, keepTabId?: number): number[] {
+	const excess = tabs.length - max;
+	if (max <= 0 || excess <= 0) return [];
+	return tabs
+		.filter((t) => t.id !== undefined && t.id !== keepTabId && !t.active)
+		.sort((a, b) => (a.lastAccessed ?? 0) - (b.lastAccessed ?? 0))
+		.slice(0, excess)
+		.map((t) => t.id!);
+}

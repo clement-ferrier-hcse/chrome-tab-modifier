@@ -95,7 +95,7 @@
 import { useRulesStore } from '../../../../../stores/rules.store.ts';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import CustomSelect from '../../../../global/CustomSelect.vue';
-import { _clone, _groupColors } from '../../../../../common/helpers.ts';
+import { _clone, _groupColors, _tabsBeyondMax } from '../../../../../common/helpers.ts';
 import { GLOBAL_EVENTS, Group } from '../../../../../common/types.ts';
 import HelpSwap from '../../../../global/HelpSwap.vue';
 
@@ -130,6 +130,23 @@ watch(
 	}
 );
 
+// Open groups with this title already over the new limit: close their extra tabs after confirmation
+const trimOpenGroups = async () => {
+	const { title, max_tabs: max = 0 } = currentGroup.value;
+	if (max <= 0) return;
+
+	const openGroups = await chrome.tabGroups.query({ title });
+	const toClose = (
+		await Promise.all(
+			openGroups.map(async (g) => _tabsBeyondMax(await chrome.tabs.query({ groupId: g.id }), max))
+		)
+	).flat();
+	if (toClose.length === 0) return;
+
+	const message = `This will close the ${toClose.length} least recently used tab(s) already open beyond the limit in this group.`;
+	if (confirm(message)) await chrome.tabs.remove(toClose);
+};
+
 const save = async () => {
 	// empty or invalid input means no limit
 	currentGroup.value.max_tabs = Math.max(0, Math.floor(Number(currentGroup.value.max_tabs) || 0));
@@ -138,6 +155,8 @@ const save = async () => {
 	} else {
 		await rulesStore.addGroup(currentGroup.value);
 	}
+
+	await trimOpenGroups();
 
 	emitter.emit(GLOBAL_EVENTS.CLOSE_ADD_GROUP_MODAL);
 

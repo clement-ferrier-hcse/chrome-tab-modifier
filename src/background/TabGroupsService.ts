@@ -1,5 +1,6 @@
 import { Group, Rule, TabModifierSettings } from '../common/types';
 import { _getStorageAsync } from '../common/storage';
+import { _tabsBeyondMax } from '../common/helpers';
 
 /**
  * Service responsible for managing tab groups
@@ -173,15 +174,7 @@ export class TabGroupsService {
 		const groupId = (await chrome.tabs.get(tabId).catch(() => undefined))?.groupId;
 		if (groupId === undefined || groupId === -1) return;
 
-		const tabs = await chrome.tabs.query({ groupId });
-		const excess = tabs.length - max;
-		if (excess <= 0) return;
-
-		const closable = tabs
-			.filter((t) => t.id !== undefined && t.id !== tabId && !t.active)
-			.sort((a, b) => (a.lastAccessed ?? 0) - (b.lastAccessed ?? 0))
-			.slice(0, excess)
-			.map((t) => t.id!);
+		const closable = _tabsBeyondMax(await chrome.tabs.query({ groupId }), max, tabId);
 		if (closable.length > 0) await chrome.tabs.remove(closable);
 	}
 
